@@ -1,0 +1,62 @@
+import { useRef, useState } from 'react'
+import type { FormEvent } from 'react'
+import { UserRound, Building2, Wallet, UploadCloud, FileText, Trash2, Info, Check, CalendarDays, ShieldCheck } from 'lucide-react'
+import type { Client, ClientServices, Status, Appointment, Payment } from '../lib/types'
+import { statuses, documentLabels, money, today, getClientServices } from '../lib/types'
+import { Modal, Flag } from './UI'
+import { ServiceChecklist } from './Services'
+
+export function ClientModal({ client, preset = 'new', clients, onSave, onClose, onServiceChange }: { client?: Client; preset?: Status; clients: Client[]; onSave: (client: Client) => void; onClose: () => void; onServiceChange: (id: string, key: keyof ClientServices, done: boolean) => void }) {
+  const [form, setForm] = useState<Client>(client || { id: crypto.randomUUID(), name: '', phone: '+998 ', passport: '', city: 'Ankara', status: preset, total: 600, paid: 0, documents: { passport: false, permit: false, insurance: false, ticket: false }, files: [], created: today(), notes: '', color: Math.floor(Math.random() * 6) })
+  const [error, setError] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+  const set = <K extends keyof Client>(key: K, value: Client[K]) => setForm(f => ({ ...f, [key]: value }))
+  const changeService = (key: keyof ClientServices, done: boolean) => {
+    setForm(current => ({ ...current, services: { ...getClientServices(current), [key]: done } }))
+    if (client) onServiceChange(client.id, key, done)
+  }
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    if (form.name.trim().split(/\s+/).length < 2) return setError('Ism va familiyani to‘liq kiriting.')
+    if (form.phone.replace(/\D/g, '').length < 9) return setError('To‘g‘ri telefon raqamini kiriting.')
+    if (!/^[A-Z]{2}\d{7}$/.test(form.passport)) return setError('Pasport raqami 2 ta harf va 7 ta raqamdan iborat bo‘lishi kerak. Masalan: AA1234567.')
+    if (clients.some(c => c.id !== form.id && c.passport === form.passport)) return setError('Bu pasport raqamiga ega mijoz allaqachon mavjud.')
+    if (form.paid > form.total) return setError('Berilgan avans kelishilgan summadan oshmasligi kerak.')
+    onSave({ ...form, name: form.name.trim(), phone: form.phone.trim() })
+  }
+  const addFiles = (files: FileList | null) => {
+    if (!files) return
+    const items = Array.from(files)
+    if (items.some(f => f.size > 10 * 1024 * 1024)) { setError('Har bir fayl hajmi 10 MB dan oshmasligi kerak.'); return }
+    if (items.some(f => !/\.(pdf|jpe?g|png)$/i.test(f.name))) { setError('Faqat PDF, JPG yoki PNG fayllarni tanlang.'); return }
+    setError('')
+    setForm(f => ({ ...f, files: [...f.files, ...items.filter(item => !f.files.some(existing => existing.name === item.name)).map(item => ({ name: item.name, size: item.size }))] }))
+  }
+  return <Modal title={client ? 'Mijozni tahrirlash' : 'Yangi mijoz qo‘shish'} subtitle={client ? 'Mijoz ma’lumotlari va jarayon holatini yangilang.' : 'Yangi mijoz ma’lumotlarini kiriting va ishni boshlang.'} onClose={onClose} wide><form onSubmit={submit} className="modal-form"><div className="modal-body">
+    <h3 className="form-section-title"><UserRound size={17}/> Shaxsiy ma’lumotlar</h3><div className="form-grid"><label>F.I.O. <span className="required">*</span><input required autoComplete="name" placeholder="Masalan, Javohir Abdullayev" value={form.name} onChange={e => set('name', e.target.value)}/></label><label>Telefon raqami <span className="required">*</span><input required type="tel" autoComplete="tel" placeholder="+998 90 123 45 67" value={form.phone} onChange={e => set('phone', e.target.value)}/></label><label>Pasport raqami <span className="required">*</span><input required placeholder="AA1234567" maxLength={9} value={form.passport} onChange={e => set('passport', e.target.value.toUpperCase().replace(/\s/g, ''))}/></label><label>Jarayon holati<select value={form.status} onChange={e => set('status', e.target.value as Status)}>{statuses.map(s => <option value={s.id} key={s.id}>{s.label}</option>)}</select></label></div>
+    <ServiceChecklist client={form} autosave={Boolean(client)} onChange={changeService}/>
+    <h3 className="form-section-title"><Building2 size={17}/> Maqsadli elchixona</h3><div className="embassy-options">{(['Ankara', 'Astana'] as const).map(city => <button type="button" key={city} className={form.city === city ? 'selected' : ''} onClick={() => set('city', city)}><Flag city={city}/><span><strong>Estoniya — {city}</strong><small>{city === 'Ankara' ? 'Turkiya' : 'Qozog‘iston'}</small></span><span className="radio-indicator">{form.city === city && <i/>}</span></button>)}</div>
+    <h3 className="form-section-title"><Wallet size={17}/> To‘lov ma’lumotlari</h3><div className="form-grid"><label>Kelishilgan summa ($)<input type="number" required min="0" step="0.01" value={form.total} onChange={e => set('total', Number(e.target.value))}/></label><label>Berilgan avans ($)<input type="number" required min="0" max={form.total} step="0.01" value={form.paid} onChange={e => set('paid', Number(e.target.value))}/></label></div><div className="balance-summary"><span>Qoldiq summa</span><strong>{money(form.total - form.paid)} $</strong><span className={`status-badge ${form.paid >= form.total ? 'green' : form.paid > 0 ? 'amber' : 'neutral'}`}><i/>{form.paid >= form.total ? 'To‘liq to‘landi' : form.paid > 0 ? 'Qisman to‘landi' : 'To‘lanmadi'}</span></div>
+    <h3 className="form-section-title"><ShieldCheck size={17}/> Hujjatlar ro‘yxati</h3><div className="document-checklist">{documentLabels.map(doc => <label key={doc.key} className={form.documents[doc.key] ? 'checked' : ''}><input type="checkbox" checked={form.documents[doc.key]} onChange={e => set('documents', { ...form.documents, [doc.key]: e.target.checked })}/>{doc.label}{form.documents[doc.key] && <Check size={14}/>}</label>)}</div>
+    <input ref={inputRef} className="sr-only" tabIndex={-1} type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onChange={e => { addFiles(e.target.files); e.target.value = '' }} aria-label="Hujjat fayllarini tanlash"/><button type="button" className="upload-area" onClick={() => inputRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); addFiles(e.dataTransfer.files) }}><UploadCloud size={25}/><strong>Hujjat biriktirish uchun bosing</strong><span>yoki fayllarni shu yerga tashlang · PDF, JPG, PNG · 10 MB gacha</span></button><p className="file-note"><Info size={12}/> Faqat fayl nomi saqlanadi, hujjatning o‘zi serverga yuklanmaydi.</p>
+    {form.files.length > 0 && <div className="attached-files">{form.files.map((file, i) => <div key={`${file.name}-${i}`}><FileText size={17}/><span>{file.name}<small>{(file.size / 1024).toFixed(0)} KB</small></span><button type="button" className="icon-button danger-text" aria-label={`${file.name} faylini olib tashlash`} onClick={() => set('files', form.files.filter((_, n) => n !== i))}><Trash2 size={15}/></button></div>)}</div>}
+    <label className="notes-label">Qo‘shimcha izoh<textarea rows={2} placeholder="Mijoz bilan bog‘liq muhim eslatmalar..." value={form.notes} onChange={e => set('notes', e.target.value)}/></label>
+    {error && <div className="form-error" role="alert">{error}</div>}
+    </div><div className="modal-footer"><span><ShieldCheck size={14}/> {import.meta.env.VITE_SUPABASE_URL ? 'Ma’lumotlar bulutda saqlanadi' : 'Ma’lumotlar brauzerda saqlanadi'}</span><button type="button" className="button button-outline" onClick={onClose}>Bekor qilish</button><button type="submit" className="button button-primary"><Check size={16}/>{client ? 'O‘zgarishlarni saqlash' : 'Mijozni qo‘shish'}</button></div></form></Modal>
+}
+
+export function AppointmentModal({ clients, appointment, selectedId, onSave, onClose }: { clients: Client[]; appointment?: Appointment; selectedId?: string; onSave: (appointment: Appointment) => void; onClose: () => void }) {
+  const [form, setForm] = useState<Appointment>(appointment || { id: crypto.randomUUID(), clientId: selectedId || '', date: today(), time: '09:00', notes: '' })
+  const client = clients.find(c => c.id === form.clientId)
+  return <Modal title={appointment ? 'Navbatni tahrirlash' : 'Navbat belgilash'} subtitle="Elchixona uchrashuvining sana va vaqtini kiriting." onClose={onClose}><form onSubmit={e => { e.preventDefault(); onSave(form) }}><div className="modal-body"><label className="field-label">Mijoz <span className="required">*</span><select required value={form.clientId} onChange={e => setForm({ ...form, clientId: e.target.value })}><option value="">Mijozni tanlang</option>{clients.filter(c => c.status !== 'completed' || c.id === form.clientId).map(c => <option key={c.id} value={c.id}>{c.name} — {c.passport}</option>)}</select></label>{client && <div className="appointment-embassy"><Flag city={client.city}/><div><strong>Estoniya — {client.city}</strong><p>{client.phone}</p></div><Building2 size={20}/></div>}<div className="form-grid"><label>Sana <span className="required">*</span><input type="date" required min={appointment ? undefined : today()} value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}/></label><label>Vaqt <span className="required">*</span><input type="time" required value={form.time} onChange={e => setForm({ ...form, time: e.target.value })}/></label></div><label className="notes-label">Izoh<textarea rows={3} placeholder="Uchrashuvga oid eslatma..." value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}/></label><div className="info-box"><Info size={17}/><p>Navbat saqlangach, mijoz holati “Navbat olindi”ga o‘zgaradi. Bu ichki qayd bo‘lib, elchixona saytida avtomatik navbat band qilmaydi.</p></div></div><div className="modal-footer"><button type="button" className="button button-outline" onClick={onClose}>Bekor qilish</button><button className="button button-primary" type="submit"><CalendarDays size={16}/>Navbatni saqlash</button></div></form></Modal>
+}
+
+export function PaymentModal({ clients, selectedId, onSave, onClose }: { clients: Client[]; selectedId?: string; onSave: (payment: Payment) => void; onClose: () => void }) {
+  const [clientId, setClientId] = useState(selectedId || '')
+  const [amount, setAmount] = useState('')
+  const [method, setMethod] = useState('Naqd pul')
+  const [date, setDate] = useState(today())
+  const [notes, setNotes] = useState('')
+  const client = clients.find(c => c.id === clientId)
+  return <Modal title="To‘lov kiritish" subtitle="Qabul qilingan to‘lovni mijoz hisobiga qo‘shing." onClose={onClose}><form onSubmit={e => { e.preventDefault(); if (client && Number(amount) > 0 && Number(amount) <= client.total - client.paid) onSave({ id: crypto.randomUUID(), clientId, amount: Number(amount), method, date, notes }) }}><div className="modal-body"><label className="field-label">Mijoz <span className="required">*</span><select required value={clientId} onChange={e => { setClientId(e.target.value); setAmount('') }}><option value="">Mijozni tanlang</option>{clients.filter(c => c.paid < c.total).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>{client && <div className="payment-balance"><span>Kelishilgan summa <strong>{money(client.total)} $</strong></span><span>To‘langan <strong>{money(client.paid)} $</strong></span><span>Qoldiq <strong>{money(client.total - client.paid)} $</strong></span></div>}<div className="form-grid"><label>To‘lov summasi ($) <span className="required">*</span><input type="number" required min="0.01" step="0.01" max={client ? client.total - client.paid : undefined} placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)}/></label><label>To‘lov usuli<select value={method} onChange={e => setMethod(e.target.value)}><option>Naqd pul</option><option>Bank o‘tkazmasi</option><option>Karta orqali</option></select></label><label>To‘lov sanasi<input type="date" required value={date} onChange={e => setDate(e.target.value)}/></label></div><label className="notes-label">Izoh<textarea rows={2} placeholder="To‘lov haqida izoh..." value={notes} onChange={e => setNotes(e.target.value)}/></label></div><div className="modal-footer"><button type="button" className="button button-outline" onClick={onClose}>Bekor qilish</button><button className="button button-primary" type="submit" disabled={!client}><Check size={16}/>To‘lovni saqlash</button></div></form></Modal>
+}
