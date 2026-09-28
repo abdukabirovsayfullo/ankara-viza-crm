@@ -1,6 +1,6 @@
 export type Page = 'overview' | 'clients' | 'appointments' | 'payments' | 'settings'
 export type City = 'Ankara' | 'Astana'
-export type Status = 'new' | 'documents' | 'waiting' | 'booked' | 'completed'
+export type Status = 'new' | 'documents' | 'waiting' | 'booked' | 'submitted' | 'review' | 'approved' | 'refused' | 'completed'
 export type Documents = { passport: boolean; permit: boolean; insurance: boolean; ticket: boolean }
 export type ClientServices = { questionnaire: boolean; insurance: boolean; travel: boolean; appointment: boolean }
 export interface Client {
@@ -26,15 +26,21 @@ export const getClientServices = (client: Client): ClientServices => ({
   questionnaire: false,
   insurance: client.documents.insurance,
   travel: false,
-  appointment: client.status === 'booked' || client.status === 'completed',
+  appointment: hasAppointmentStage(client.status),
   ...client.services,
 })
+export const hasAppointmentStage = (status: Status) => !['new', 'documents', 'waiting'].includes(status)
+export const isClosed = (status: Status) => ['approved', 'refused', 'completed'].includes(status)
 export const statuses: { id: Status; label: string; short: string; color: string }[] = [
   { id: 'new', label: 'Yangi mijoz', short: 'Yangi mijoz', color: 'blue' },
   { id: 'documents', label: 'Hujjat kutilmoqda', short: 'Hujjat kutilmoqda', color: 'amber' },
   { id: 'waiting', label: 'Navbat (Ochrt) kutilmoqda', short: 'Navbat kutilmoqda', color: 'purple' },
   { id: 'booked', label: 'Navbat olindi', short: 'Navbat olindi', color: 'teal' },
-  { id: 'completed', label: 'Muvaffaqiyatli yakunlandi', short: 'Yakunlandi', color: 'green' },
+  { id: 'submitted', label: 'Ariza topshirildi', short: 'Topshirildi', color: 'blue' },
+  { id: 'review', label: 'Natija kutilmoqda', short: 'Natija kutilmoqda', color: 'amber' },
+  { id: 'approved', label: 'Viza berildi', short: 'Viza berildi', color: 'green' },
+  { id: 'refused', label: 'Viza rad etildi', short: 'Rad etildi', color: 'rose' },
+  { id: 'completed', label: 'Yakunlandi (eski qayd)', short: 'Yakunlandi', color: 'green' },
 ]
 export const documentLabels: { key: keyof Documents; label: string }[] = [
   { key: 'passport', label: 'Pasport' },

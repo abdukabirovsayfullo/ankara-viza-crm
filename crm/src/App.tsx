@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { LayoutDashboard, UsersRound, CalendarDays, Wallet, Settings2, Search, Bell, Moon, Sun, ChevronDown, ChevronRight, Plus, Menu, X, LifeBuoy, ArrowUpRight, Check, CheckCheck, House, ShieldCheck, ArrowRight, CircleHelp, AlertTriangle, Sparkles, UploadCloud } from 'lucide-react'
 import type { Client, Appointment, Payment, Profile, Page, Status } from './lib/types'
-import { money, dateLabel, today, getClientServices } from './lib/types'
+import { money, dateLabel, today, getClientServices, hasAppointmentStage } from './lib/types'
 import { makeClients, initialAppointments, initialProfile, loadData } from './lib/data'
 import { Avatar, Flag, Modal, EmptyState, StatusBadge } from './components/UI'
 import ClientsPanel from './components/ClientsPanel'
@@ -123,14 +123,14 @@ export default function App({ userEmail }: { userEmail?: string }) {
   const saveClient = (client: Client) => {
     const existing = clients.find(c => c.id === client.id)
     const saved = { ...client, services: getClientServices(client) }
-    if (existing && existing.status !== client.status) saved.services.appointment = client.status === 'booked' || client.status === 'completed'
+    if (existing && existing.status !== client.status) saved.services.appointment = hasAppointmentStage(client.status)
     setClients(current => existing ? current.map(c => c.id === client.id ? saved : c) : [saved, ...current])
-    if (client.status !== 'booked' && client.status !== 'completed') setAppointments(current => current.filter(a => a.clientId !== client.id))
+    if (!hasAppointmentStage(client.status)) setAppointments(current => current.filter(a => a.clientId !== client.id))
     setModal(null); notify(existing ? 'Mijoz ma’lumotlari yangilandi' : 'Yangi mijoz muvaffaqiyatli qo‘shildi')
   }
   const moveClient = (id: string, status: Status) => {
-    setClients(current => current.map(c => c.id === id ? { ...c, status, services: { ...getClientServices(c), appointment: status === 'booked' || status === 'completed' } } : c))
-    if (status !== 'booked' && status !== 'completed') setAppointments(current => current.filter(a => a.clientId !== id))
+    setClients(current => current.map(c => c.id === id ? { ...c, status, services: { ...getClientServices(c), appointment: hasAppointmentStage(status) } } : c))
+    if (!hasAppointmentStage(status)) setAppointments(current => current.filter(a => a.clientId !== id))
     notify('Mijozning jarayon holati yangilandi')
   }
   const deleteClients = (ids: string[]) => setConfirm({ title: ids.length === 1 ? 'Mijozni o‘chirasizmi?' : 'Mijozlarni o‘chirasizmi?', text: `${ids.length} ta mijoz va ularga tegishli navbat hamda to‘lov qaydlari o‘chiriladi. Bu amalni ortga qaytarib bo‘lmaydi.`, action: 'Ha, o‘chirish', onConfirm: () => {
