@@ -242,6 +242,7 @@ select { border: 1px solid var(--border-strong); color: var(--secondary); backgr
 .purple { background: #f1edfa; color: #9580bf; }
 .teal { background: #eaf5f0; color: #4d9f7d; }
 .green { background: #eef5ed; color: #749669; }
+.rose { background: #fceeee; color: #ad5e68; }
 .neutral { background: #f2f3f4; color: #8b9490; }
 .document-icons { display: flex; align-items: center; gap: 4px; }
 .document-icons > span { width: 20px; height: 20px; background: var(--surface-secondary); color: #bec7c0; border: 1px solid var(--border); border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; }
@@ -515,6 +516,7 @@ select { border: 1px solid var(--border-strong); color: var(--secondary); backgr
 :root[data-theme='dark'] .status-badge.purple { color: #b7a4dc; }
 :root[data-theme='dark'] .status-badge.teal { color: #89c5a8; }
 :root[data-theme='dark'] .status-badge.green { color: #a2c596; }
+:root[data-theme='dark'] .status-badge.rose { color: #e3a0aa; }
 :root[data-theme='dark'] .status-badge.neutral { color: #b3c0b8; }
 :root[data-theme='dark'] .document-icons > span.document-done { color: #80bb94; background: #23392c; border-color: #304b39; }
 :root[data-theme='dark'] .pagination button.active { border-color: #335a42; }

@@ -1,22 +1,22 @@
 import { UsersRound, CalendarClock, Wallet, BadgeCheck, TrendingUp, ArrowRight, CalendarDays, ArrowUpRight, CircleDollarSign } from 'lucide-react'
 import type { Client, Appointment, Page } from '../lib/types'
-import { money, dateLabel, months, today } from '../lib/types'
+import { money, dateLabel, months, today, isClosed } from '../lib/types'
 import { Flag, Sparkline, EmptyState } from './UI'
 
 export function Stats({ clients, onNavigate }: { clients: Client[]; onNavigate: (page: Page) => void }) {
   const waiting = clients.filter(c => c.status === 'waiting')
   const balance = clients.reduce((sum, c) => sum + c.total - c.paid, 0)
-  const complete = clients.filter(c => c.status === 'completed').length
+  const complete = clients.filter(c => isClosed(c.status)).length
   const weekStart = new Date(Date.now() - 6 * 86400000).toLocaleDateString('en-CA')
   return <div className="stats-grid">
     <button className="stat-card" onClick={() => onNavigate('clients')}><div className="stat-top"><span>Jami mijozlar</span><span className="stat-icon icon-blue"><UsersRound size={19}/></span></div><strong className="stat-number">{clients.length}<span>ta</span></strong><div className="stat-bottom"><span><span className="stat-trend"><TrendingUp size={13}/> {clients.filter(c => c.created >= weekStart && c.created <= today()).length} ta yangi</span><small>oxirgi 7 kunda</small></span><Sparkline/></div></button>
-    <button className="stat-card" onClick={() => onNavigate('appointments')}><div className="stat-top"><span>Kutilayotgan navbatlar</span><span className="stat-icon icon-amber"><CalendarClock size={19}/></span></div><strong className="stat-number">{waiting.length}<span>ta</span></strong><div className="stat-bottom"><div className="stat-cities"><span><i className="ankara-dot"/>Ankara <b>{waiting.filter(c => c.city === 'Ankara').length}</b></span><span><i className="astana-dot"/>Astana <b>{waiting.filter(c => c.city === 'Astana').length}</b></span></div><Sparkline variant={1}/></div></button>
+    <button className="stat-card" onClick={() => onNavigate('appointments')}><div className="stat-top"><span>Navbat olinmagan mijozlar</span><span className="stat-icon icon-amber"><CalendarClock size={19}/></span></div><strong className="stat-number">{waiting.length}<span>ta</span></strong><div className="stat-bottom"><div className="stat-cities"><span><i className="ankara-dot"/>Ankara <b>{waiting.filter(c => c.city === 'Ankara').length}</b></span><span><i className="astana-dot"/>Astana <b>{waiting.filter(c => c.city === 'Astana').length}</b></span></div><Sparkline variant={1}/></div></button>
     <button className="stat-card" onClick={() => onNavigate('payments')}><div className="stat-top"><span>Qoldiq to‘lovlar</span><span className="stat-icon icon-rose"><Wallet size={19}/></span></div><strong className="stat-number">{money(balance)}<span>$</span></strong><div className="stat-bottom"><span className="stat-context"><span className="amber-text">{clients.filter(c => c.paid < c.total).length} ta mijozdan</span><small>to‘lov kutilmoqda</small></span><Sparkline variant={2}/></div></button>
-    <button className="stat-card" onClick={() => onNavigate('clients')}><div className="stat-top"><span>Yakunlangan vizalar</span><span className="stat-icon icon-green"><BadgeCheck size={19}/></span></div><strong className="stat-number">{complete}<span>ta</span></strong><div className="stat-bottom"><span><span className="stat-trend"><TrendingUp size={13}/>{clients.length ? Math.round(complete / clients.length * 100) : 0}% muvaffaqiyatli</span><small>barcha mijozlarga nisbatan</small></span><Sparkline variant={3}/></div></button>
+    <button className="stat-card" onClick={() => onNavigate('clients')}><div className="stat-top"><span>Yakunlangan ishlar</span><span className="stat-icon icon-green"><BadgeCheck size={19}/></span></div><strong className="stat-number">{complete}<span>ta</span></strong><div className="stat-bottom"><span><span className="stat-trend"><TrendingUp size={13}/>{clients.length ? Math.round(complete / clients.length * 100) : 0}% yakunlangan</span><small>barcha mijozlarga nisbatan</small></span><Sparkline variant={3}/></div></button>
   </div>
 }
 export function OverviewBottom({ clients, appointments, onNavigate, onEditAppointment }: { clients: Client[]; appointments: Appointment[]; onNavigate: (page: Page) => void; onEditAppointment: (appointment: Appointment) => void }) {
-  const upcoming = [...appointments].filter(a => a.date >= today() && clients.some(c => c.id === a.clientId && c.status !== 'completed')).sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)).slice(0, 3)
+  const upcoming = [...appointments].filter(a => a.date >= today() && clients.some(c => c.id === a.clientId && !isClosed(c.status))).sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)).slice(0, 3)
   const total = clients.reduce((s, c) => s + c.total, 0)
   const paid = clients.reduce((s, c) => s + c.paid, 0)
   const percent = total ? Math.round(paid / total * 100) : 0
